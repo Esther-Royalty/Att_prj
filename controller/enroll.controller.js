@@ -4,22 +4,18 @@ import Enroll from "../models/enroll.model.js";
 
 
 // Helper function to prevent attendance marking on saturdays and sundays
-const isWeekend = ()=>{
+const isWeekend = (date)=>{
   const day = date.getDay()
   return day === 0 || day === 6
 }
 //Helper function to know the start of the day
-const getStartOfDay = ()=>{
-  const start = Date(date)
-  start.setHours = (0,0,0,0)
-  return start
+const getStartOfDay = (date)=>{
+  return new Date(date.setHours = (9,0,0,0));
 }
 
 //Helper function to know end of the day
-const getEndOfDay = ()=>{
-  const end = Date(date)
-  end.setHours = (23,59,99,999)
-  return end
+const getEndOfDay = (date)=>{
+  return new Date(date.setHours = (13,59,99,999))
 }
 
 
@@ -83,7 +79,7 @@ export const EnrollUser = async (req, res, next) => {
 export const markAttendance = async (req,res,next)=>{
   try {
     const {email}= req.body;
-
+//Check for empty input
     if(!email){
       return res.status(400).json({message: "Email required!"})
     }
@@ -96,7 +92,7 @@ export const markAttendance = async (req,res,next)=>{
     }
 
     const today = new Date()
-    console.log("Today's Date: ", today)
+    console.log("Today's Date:", today)
 
     //check if today is weekend
     if(isWeekend(today)){
@@ -111,9 +107,12 @@ export const markAttendance = async (req,res,next)=>{
 
     const startOfDay = getStartOfDay(today)
     const endOfDay = getEndOfDay(today)
+
+
     const alreadyMarked = student.attendance.some((record)=>{
 
       const recordDate = new Date(record.date);
+
       return recordDate >= startOfDay && recordDate <= endOfDay;
 
       
@@ -130,10 +129,21 @@ export const markAttendance = async (req,res,next)=>{
     })
 
     //save it
-    await student.save();
+    await student.save(); 
+
+//     //displays the date nicely
+//     const formattedDate = today.toLocaleString("en-GB", {
+//   day: "2-digit",
+//   month: "short",
+//   year: "numeric",
+//   hour: "2-digit",
+//   minute: "2-digit",
+//   hour12: true
+// });
 
     return res.status(200).json({
       message: "Attendance marked successfully!",
+      // date: formattedDate
     })
 
    
@@ -146,7 +156,53 @@ export const markAttendance = async (req,res,next)=>{
 }
 
 export const autoMarkabsence = async (req,res,next)=>{
+      
+  try {
+     const today = new Date()
+       //dont run if it is weekend
+       if(isWeekend(today)) {
+        const message = "It's the weekend - No auto-marking needed";
+        console.log(message)}
+       
+        if(res){
+            return res.status(200).json({message})
+        }
 
+    //This helps to check if the current time is between 9am to 1:59pm
+    const DayBegins = getStartOfDay(today)
+    const DayEnds = getEndOfDay(today)
+
+    //This will return all the list of the students in the database
+    const students = await Enroll.find({})
+     
+    let MarkedCount = 0;
+
+    for(const student of students){
+            const markToday = student.attendance.some((record)=>{
+              // Get the date from the record
+              const recordDate = new Date(record.date)
+
+              //Check if the record date is within today
+              return (record.status === "present" && recordDate >= DayBegins && recordDate <= DayEnds)
+            })
+            if(!markToday){
+              student.attendance.push({
+                date: today,
+                status: "absent"
+              })
+
+              await student.save()
+              MarkedCount++;
+              console.log(`Auto marked ${student.email} as absent today ${today.toDateString()}`)
+            };
+
+          }
+          const message = `The total students marked absent today is ${MarkedCount}`;
+          console.log(message)
+
+  } catch (error) {
+    
+  } 
 }
 
 export const getOverallAttendance = async (req,res,next)=>{

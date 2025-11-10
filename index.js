@@ -6,7 +6,8 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import enrollRouter from "./routes/enroll.route.js";
-import attendanceRouter from "./routes/attendance.route.js"
+import cron from "node-cron";
+import { autoMarkabsence } from './controller/enroll.controller.js';
 
 
 const app = express();
@@ -25,8 +26,14 @@ app.use(express.urlencoded({extended:true}));
 
 app.use('/api/v1/auth', authRouter);
 app.use("/api/v1", enrollRouter);
-app.use("/api/attendance", attendanceRouter);
 
+cron.schedule('* * * * *', async () => {
+  console.log("Auto-mark Attendance")
+
+  await autoMarkabsence(null, null)
+}
+
+)
 
 
 app.listen(PORT, ()=>{
